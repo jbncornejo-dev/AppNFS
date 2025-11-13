@@ -11,14 +11,29 @@ def verificar_directorio(path):
 
 def crear_directorio(path):
     """
-    Intenta crear un directorio.
+    Intenta crear un directorio y asigna permisos ugo+rw (y ejecución).
     Devuelve (True, "Éxito") o (False, "Mensaje de error").
     """
     try:
+        # 1. Crear el directorio
         os.makedirs(path)
-        return True, f"Directorio {path} creado."
+        
+        # 2. Aplicar permisos (Equivalente a: chmod ugo+rwx)
+        # Usamos 0o777 porque las carpetas necesitan la 'x' (ejecución) 
+        # para que se pueda acceder a su contenido.
+        os.chmod(path, 0o777) 
+        
+        return True, f"Directorio {path} creado con permisos ugo+rw."
+        
     except PermissionError:
-        return False, "Error de Permisos: No se pudo crear el directorio."
+        return False, "Error de Permisos: No se pudo crear el directorio o cambiar permisos."
+    except FileExistsError:
+        # Si por alguna razón la carpeta ya existía pero igual quieres asegurar permisos:
+        try:
+            os.chmod(path, 0o777)
+            return True, f"El directorio {path} ya existía. Se actualizaron sus permisos."
+        except:
+            return False, f"El directorio {path} ya existe y no se pudieron cambiar permisos."
     except Exception as e:
         return False, f"Error inesperado: {e}"
 
@@ -106,3 +121,31 @@ def aplicar_cambios_nfs():
         return False, f"Error al ejecutar 'exportfs -ra': {e.stderr.decode()}"
     except FileNotFoundError:
         return False, "Error: El comando 'exportfs' no se encontró en el PATH."
+        
+     
+def habilitar_servicio_nfs():
+    """
+    Verifica si el servicio ya está activo. Si no, intenta iniciarlo.
+    """
+    try:
+        # PASO 1: Verificar estado actual (Rápido)
+        # 'is-active' devuelve 'active' si todo está bien.
+        check_cmd = "systemctl is-active nfs-server"
+        check = subprocess.run(shlex.split(check_cmd), capture_output=True, text=True)
+        
+        if check.stdout.strip() == "active":
+            return True, "El servicio ya estaba activo (no se requirieron cambios)."
+
+        # PASO 2: Si NO está activo, intentamos iniciarlo (Lento)
+        # Bajamos el timeout a 5 segundos para que no se cuelgue tanto tiempo si falla
+        start_cmd = "systemctl enable --now nfs-server"
+        subprocess.run(shlex.split(start_cmd), check=True, capture_output=True, timeout=5)
+        
+        return True, "Servicio NFS habilitado e iniciado correctamente."
+
+    except subprocess.TimeoutExpired:
+        return False, "Error: El inicio del servicio tardó demasiado (Timeout)."
+    except subprocess.CalledProcessError as e:
+        return False, f"Error systemctl: {e.stderr}" # 'text=True' no es necesario en decode si usas el objeto error
+    except Exception as e:
+        return False, f"Error inesperado servicio: {e}"

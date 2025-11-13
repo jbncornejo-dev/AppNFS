@@ -113,8 +113,12 @@ class CargarHostDialog(QDialog):
 class NFSApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('Ui/MainWindow.ui', self)
         
+        # ... (Carga de UI, iconos, rutas, etc.) ...
+        ruta_base = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(ruta_base)
+        uic.loadUi('Ui/MainWindow.ui', self)      
+               
         # Cargar el icono de la app
         icon_path = 'assets/app_icon.png'
         if os.path.exists(icon_path):
@@ -514,3 +518,5 @@ if __name__ == "__main__":
     window = NFSApp()
     window.show()
     sys.exit(app.exec())
+    
+    
