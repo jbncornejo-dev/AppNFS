@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Configurador NFS
+Comment=Gestionar exportaciones NFS (/etc/exports)
+# EL COMANDO MÁGICO:
+# xdg-su -c pedirá la contraseña gráfica de root antes de lanzar Python
+Exec=xdg-su -c "/usr/bin/python3.11 /opt/AppNFS/main.py"
+Icon=/opt/MiAppNFS/assets/app_icon.png
+Terminal=false
+Type=Application
+Categories=System;Settings;Network;
+StartupNotify=true
