@@ -1,5 +1,6 @@
 import sys
 import os
+from PyQt6.QtCore import Qt
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
@@ -114,15 +115,52 @@ class NFSApp(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        # ... (Carga de UI, iconos, rutas, etc.) ...
+        # 1. Cargar Rutas y UI
         ruta_base = os.path.dirname(os.path.abspath(__file__))
         os.chdir(ruta_base)
-        uic.loadUi('Ui/MainWindow.ui', self)      
-               
-        # Cargar el icono de la app
-        icon_path = 'assets/app_icon.png'
-        if os.path.exists(icon_path):
-            self.setWindowIcon(QIcon(icon_path))
+        uic.loadUi('Ui/MainWindow.ui', self)
+        
+        if os.path.exists('assets/app_icon.png'):
+            self.setWindowIcon(QIcon('assets/app_icon.png'))
+
+        # --- PREGUNTA DE SEGURIDAD AL INICIO ---
+        
+        respuesta = QMessageBox.question(
+            self, 
+            "Control de Servicio NFS", 
+            "¿Desea intentar iniciar el servidor NFS ahora?\n\n"
+            "• Sí: Intenta arrancar el servicio (systemctl).\n"
+            "• No: Entra a la app sin iniciar el servicio (Modo Seguro).",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if respuesta == QMessageBox.StandardButton.Yes:
+            # Opción SI: Intentamos iniciar
+            
+            # Ponemos cursor de espera y forzamos actualización visual
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            QApplication.processEvents() 
+            
+            try:
+                exito, mensaje = nfs_logic.habilitar_servicio_nfs()
+                
+                # Quitamos el cursor de espera
+                QApplication.restoreOverrideCursor()
+                
+                if not exito:
+                    QMessageBox.warning(self, "Resultado", f"No se pudo iniciar NFS:\n{mensaje}")
+                else:
+                    # Opcional: Avisar que todo salió bien (o no hacer nada para ser rápido)
+                    pass 
+
+            except Exception as e:
+                QApplication.restoreOverrideCursor()
+                QMessageBox.critical(self, "Error Crítico", f"Falló la lógica de NFS: {e}")
+                
+        else:
+            # Opción NO: El usuario eligió saltar esto.
+            # Esto permite entrar a la app aunque el servidor NFS esté roto.
+            print("Usuario omitió el inicio del servicio NFS.")
         
         # Almacén de datos en memoria
         self.config_data = {}

@@ -122,22 +122,19 @@ def aplicar_cambios_nfs():
     except FileNotFoundError:
         return False, "Error: El comando 'exportfs' no se encontró en el PATH."
         
-     
 def habilitar_servicio_nfs():
     """
     Verifica si el servicio ya está activo. Si no, intenta iniciarlo.
     """
     try:
-        # PASO 1: Verificar estado actual (Rápido)
-        # 'is-active' devuelve 'active' si todo está bien.
+        # PASO 1: Verificar estado actual
         check_cmd = "systemctl is-active nfs-server"
         check = subprocess.run(shlex.split(check_cmd), capture_output=True, text=True)
         
         if check.stdout.strip() == "active":
-            return True, "El servicio ya estaba activo (no se requirieron cambios)."
+            return True, "El servicio ya estaba activo."
 
-        # PASO 2: Si NO está activo, intentamos iniciarlo (Lento)
-        # Bajamos el timeout a 5 segundos para que no se cuelgue tanto tiempo si falla
+        # PASO 2: Intentar iniciar con timeout
         start_cmd = "systemctl enable --now nfs-server"
         subprocess.run(shlex.split(start_cmd), check=True, capture_output=True, timeout=5)
         
@@ -145,7 +142,5 @@ def habilitar_servicio_nfs():
 
     except subprocess.TimeoutExpired:
         return False, "Error: El inicio del servicio tardó demasiado (Timeout)."
-    except subprocess.CalledProcessError as e:
-        return False, f"Error systemctl: {e.stderr}" # 'text=True' no es necesario en decode si usas el objeto error
     except Exception as e:
-        return False, f"Error inesperado servicio: {e}"
+        return False, f"Error: {e}"
