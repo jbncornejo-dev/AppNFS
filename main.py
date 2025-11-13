@@ -143,8 +143,8 @@ class NFSApp(QMainWindow):
         os.chdir(ruta_base)
         uic.loadUi('Ui/MainWindow.ui', self)
         
-        if os.path.exists('assets/app_icon.png'):
-            self.setWindowIcon(QIcon('assets/app_icon.png'))
+        if os.path.exists('assets/app_icon.ico'):
+            self.setWindowIcon(QIcon('assets/app_icon.ico'))
 
         # --- PREGUNTA DE SEGURIDAD AL INICIO ---
         
