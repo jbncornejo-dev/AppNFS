@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 from PyQt6.QtCore import Qt
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QIcon
@@ -10,13 +11,12 @@ from PyQt6.QtWidgets import (
 
 import nfs_logic
 
-# --- BLOQUE MÁGICO PARA CORREGIR RUTAS ---
+# --- BLOQUE PARA CORREGIR RUTAS ---
 # Obtiene la ruta absoluta de donde está guardado este archivo main.py
 ruta_base = os.path.dirname(os.path.abspath(__file__))
 
 # Cambia el directorio de trabajo a esa ruta
 os.chdir(ruta_base)
-# -----------------------------------------
 
 # --- Clase para el Diálogo de Añadir/Editar Host ---
 class CargarHostDialog(QDialog):
@@ -37,76 +37,99 @@ class CargarHostDialog(QDialog):
             'anonuid': self.anonuid, 'anongid': self.anongid
         }
         
-        # --- APLICANDO LA LÓGICA DE OPUESTOS ---
+        # --- GRUPOS DE OPCIONES ---
         
-        # Grupo 1: Acceso (rw vs ro)
+        # Grupo 1: Acceso
         self.group_acceso = QButtonGroup(self)
         self.group_acceso.addButton(self.rw)
         self.group_acceso.addButton(self.ro)
-        # Opcional: Marcar uno por defecto para que no estén ambos vacíos
-        self.ro.setChecked(True) 
+        self._configurar_grupo(self.group_acceso)
 
-        # Grupo 2: Sincronización (sync vs async)
+        # Grupo 2: Sincronización
         self.group_sync = QButtonGroup(self)
         self.group_sync.addButton(self.sync)
-        self.group_sync.addButton(self.async_opt) # Recuerda usar el nombre corregido
-        self.sync.setChecked(True) # Default recomendado
+        self.group_sync.addButton(self.async_opt)
+        self._configurar_grupo(self.group_sync)
 
-        # Grupo 3: Privilegios Root (root_squash vs no_root_squash)
+        # Grupo 3: Privilegios Root
         self.group_root = QButtonGroup(self)
         self.group_root.addButton(self.root_squash)
         self.group_root.addButton(self.no_root_squash)
-        self.root_squash.setChecked(True) # Default seguro
+        self._configurar_grupo(self.group_root)
 
-        # Grupo 4: Subárbol (subtree_check vs no_subtree_check)
+        # Grupo 4: Subárbol
         self.group_subtree = QButtonGroup(self)
         self.group_subtree.addButton(self.subtree_check)
         self.group_subtree.addButton(self.no_subtree_check)
-        self.no_subtree_check.setChecked(True) # Default común
+        self._configurar_grupo(self.group_subtree)
 
-        # Grupo 5: Puerto (secure vs insecure)
+        # Grupo 5: Puerto
         self.group_secure = QButtonGroup(self)
         self.group_secure.addButton(self.secure)
         self.group_secure.addButton(self.insecure)
-        self.secure.setChecked(True)
+        self._configurar_grupo(self.group_secure)
+        
+        # NOTA: He quitado los .setChecked(True) por defecto para que 
+        # empiecen vacíos si así lo prefieres.
+
+    def _configurar_grupo(self, group):
+        """
+        Configura un grupo para que permita desmarcar todos (0 seleccionados)
+        pero impida tener más de uno (máximo 1 seleccionado).
+        """
+        group.setExclusive(False) # Permite desmarcar el que ya está marcado
+        
+        # Conectamos la señal para hacer la exclusión manual
+        group.buttonToggled.connect(self._on_button_toggled)
+
+    def _on_button_toggled(self, button, checked):
+        """
+        Lógica manual: Si un botón se ENCIENDE, apagamos a su opuesto.
+        Si un botón se APAGA, no hacemos nada (permitimos que quede vacío).
+        """
+        if checked:
+            group = button.group()
+            for btn in group.buttons():
+                if btn is not button:
+                    btn.setChecked(False)
 
     def get_opciones_seleccionadas(self):
         """
-        Revisa los checkboxes. Si anonuid/anongid están marcados,
-        les añade el valor '=1000' automáticamente.
+        Revisa los checkboxes y genera la cadena de texto.
         """
         opciones_lista = []
         
-        # 1. Recorremos el diccionario de checkboxes
         for nombre_opcion, checkbox_widget in self.checkboxes.items():
-            
             if checkbox_widget.isChecked():
-                
-                # CASO ESPECIAL: Si es anonuid, escribimos "anonuid=1000"
+                # CASOS ESPECIALES
                 if nombre_opcion == 'anonuid':
                     opciones_lista.append("anonuid=1000")
-                
-                # CASO ESPECIAL: Si es anongid, escribimos "anongid=1000"
                 elif nombre_opcion == 'anongid':
                     opciones_lista.append("anongid=1000")
-                
-                # CASO NORMAL: Escribimos el nombre tal cual (ej. "rw")
                 else:
                     opciones_lista.append(nombre_opcion)
 
         return ",".join(opciones_lista)
 
     def set_datos(self, host, opciones_str):
-        """Rellena el diálogo con datos existentes (para editar)."""
-        # 1. Poner el texto del host
+        """Rellena el diálogo con datos existentes."""
         self.le_host.setText(host)
         
-        # 2. Marcar los checkboxes correspondientes
+        # Primero limpiamos todo (por si acaso)
+        for cb in self.checkboxes.values():
+            cb.setChecked(False)
+
         opciones_lista = opciones_str.split(',')
         for opcion in opciones_lista:
-            # Limpiamos espacios por si acaso
             opcion = opcion.strip()
-            if opcion in self.checkboxes:
+            
+            if opcion.startswith("anonuid="):
+                if 'anonuid' in self.checkboxes: self.checkboxes['anonuid'].setChecked(True)
+            
+            elif opcion.startswith("anongid="):
+                if 'anongid' in self.checkboxes: self.checkboxes['anongid'].setChecked(True)
+            
+            elif opcion in self.checkboxes:
                 self.checkboxes[opcion].setChecked(True)
 
 
@@ -128,39 +151,34 @@ class NFSApp(QMainWindow):
         respuesta = QMessageBox.question(
             self, 
             "Control de Servicio NFS", 
-            "¿Desea intentar iniciar el servidor NFS ahora?\n\n"
-            "• Sí: Intenta arrancar el servicio (systemctl).\n"
-            "• No: Entra a la app sin iniciar el servicio (Modo Seguro).",
+            "Para usar esta aplicación, es recomendable verificar el servidor NFS.\n\n"
+            "¿Desea intentar iniciar el servidor NFS ahora?\n",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
 
         if respuesta == QMessageBox.StandardButton.Yes:
             # Opción SI: Intentamos iniciar
             
-            # Ponemos cursor de espera y forzamos actualización visual
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents() 
             
             try:
                 exito, mensaje = nfs_logic.habilitar_servicio_nfs()
                 
-                # Quitamos el cursor de espera
                 QApplication.restoreOverrideCursor()
                 
                 if not exito:
+                    # Si falla al iniciar
                     QMessageBox.warning(self, "Resultado", f"No se pudo iniciar NFS:\n{mensaje}")
-                else:
-                    # Opcional: Avisar que todo salió bien (o no hacer nada para ser rápido)
-                    pass 
-
+                
             except Exception as e:
                 QApplication.restoreOverrideCursor()
                 QMessageBox.critical(self, "Error Crítico", f"Falló la lógica de NFS: {e}")
                 
         else:
-            # Opción NO: El usuario eligió saltar esto.
-            # Esto permite entrar a la app aunque el servidor NFS esté roto.
-            print("Usuario omitió el inicio del servicio NFS.")
+            # Opción NO: El usuario no quiere iniciar el servicio.
+            # CERRAMOS LA APLICACIÓN INMEDIATAMENTE.
+            sys.exit(0)
         
         # Almacén de datos en memoria
         self.config_data = {}
@@ -196,11 +214,24 @@ class NFSApp(QMainWindow):
             self.listaDirectorios.addItem(directorio)
 
     def on_anadir_directorio_clicked(self):
-        """Flujo para añadir un nuevo directorio (como lo definimos antes)."""
+        """Flujo para añadir un nuevo directorio."""
         
         directorio, ok = QInputDialog.getText(self, "Añadir Directorio", "Ruta del directorio:")
         if not (ok and directorio):
             return # El usuario canceló
+        
+        # --- VALIDACIÓN DE DIRECTORIO ---
+        # Regex: ^/ indica que debe empezar con barra
+        # [a-zA-Z0-9_\-/]+ indica que solo acepta letras, números, _, - y /
+        patron_dir = r'^/[a-zA-Z0-9_\-/]+$'
+        
+        if not re.match(patron_dir, directorio):
+            QMessageBox.warning(self, "Formato Inválido", 
+                                "La ruta debe ser absoluta (empezar con /).\n"
+                                "Solo se permiten letras, números, guiones y guiones bajos.\n\n"
+                                "Ejemplo válido: /opt/mis_archivos-1")
+            return
+        # --------------------------------
         
         # 1. Verificar si existe
         if not nfs_logic.verificar_directorio(directorio):
@@ -223,6 +254,14 @@ class NFSApp(QMainWindow):
             host = dialog.le_host.text()
             opciones = dialog.get_opciones_seleccionadas()
             
+            # --- VALIDACIÓN DE HOST (También aquí) ---
+            # Acepta "*" O formato IP (0-255.0-255...)
+            patron_ip = r'^(\d{1,3}\.){3}\d{1,3}$'
+            if host != "*" and not re.match(patron_ip, host):
+                QMessageBox.warning(self, "Host Inválido", "El host debe ser '*' o una IP válida (ej. 192.168.1.50)")
+                return
+            # -----------------------------------------
+            
             if not host:
                 QMessageBox.warning(self, "Dato Faltante", "El campo 'Host' no puede estar vacío.")
                 return
@@ -240,40 +279,66 @@ class NFSApp(QMainWindow):
             self.actualizar_tabla_hosts(self.listaDirectorios.currentItem())
 
     def on_editar_directorio_clicked(self):
-        """
-        Edita la ruta de un directorio seleccionado.
-        """
+        """Edita la ruta de un directorio con opción de renombrado físico."""
         
-        # 1. Obtener el item seleccionado de la lista (el "Maestro")
         item_actual = self.listaDirectorios.currentItem()
-        
         if not item_actual:
-            QMessageBox.warning(self, "Nada seleccionado", 
-                                "Por favor, selecciona un directorio de la lista para editar.")
+            QMessageBox.warning(self, "Nada seleccionado", "Por favor, selecciona un directorio para editar.")
             return
 
         directorio_viejo = item_actual.text()
 
-        # 2. Mostrar el QInputDialog, pero esta vez con el texto actual rellenado
         directorio_nuevo, ok = QInputDialog.getText(self, 
-                                                  "Editar Directorio", 
-                                                  "Ruta del directorio:", 
-                                                  text=directorio_viejo)
+                                                    "Editar Directorio", 
+                                                    "Ruta del directorio:", 
+                                                    text=directorio_viejo)
 
-        # 3. Validar la entrada del usuario
         if not (ok and directorio_nuevo):
-            return  # El usuario canceló o dejó el campo vacío
-
+            return
+        
         if directorio_viejo == directorio_nuevo:
-            return  # No se hizo ningún cambio
+            return # No hubo cambios
+
+        # --- VALIDACIÓN DE DIRECTORIO ---
+        patron_dir = r'^/[a-zA-Z0-9_\-/]+$'
+        if not re.match(patron_dir, directorio_nuevo):
+            QMessageBox.warning(self, "Formato Inválido", 
+                                "La ruta debe empezar con / y solo contener letras, números, _ y -")
+            return
+        # --------------------------------
 
         if directorio_nuevo in self.config_data:
-            QMessageBox.warning(self, "Error", 
-                                f"El directorio '{directorio_nuevo}' ya existe en la configuración.")
+            QMessageBox.warning(self, "Error", f"El directorio '{directorio_nuevo}' ya existe en la configuración.")
             return
 
-        # 4. Verificar si el NUEVO directorio existe en el disco
-        if not nfs_logic.verificar_directorio(directorio_nuevo):
+        # --- LÓGICA DE RENOMBRADO ---
+        carpeta_renombrada = False
+        
+        # 1. Verificamos si la carpeta VIEJA existe físicamente y la NUEVA no existe
+        if nfs_logic.verificar_directorio(directorio_viejo) and not nfs_logic.verificar_directorio(directorio_nuevo):
+            
+            # Preguntamos al usuario
+            resp_rename = QMessageBox.question(
+                self, 
+                "Renombrar Carpeta",
+                f"La carpeta antigua '{directorio_viejo}' existe en el disco.\n\n"
+                f"¿Desea renombrarla físicamente a '{directorio_nuevo}'?\n"
+                "(Esto moverá todos los archivos dentro).",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if resp_rename == QMessageBox.StandardButton.Yes:
+                exito, msg = nfs_logic.renombrar_directorio_fs(directorio_viejo, directorio_nuevo)
+                if exito:
+                    QMessageBox.information(self, "Éxito", msg)
+                    carpeta_renombrada = True
+                else:
+                    QMessageBox.critical(self, "Error", f"No se pudo renombrar:\n{msg}")
+                    return # Cancelamos la operación si falla el renombrado
+
+        # 2. Si NO se renombró (porque no existía la vieja o el usuario dijo NO),
+        #    entonces verificamos si hace falta CREAR la nueva.
+        if not carpeta_renombrada and not nfs_logic.verificar_directorio(directorio_nuevo):
             respuesta = QMessageBox.question(self, "Directorio no encontrado",
                                              f"El directorio '{directorio_nuevo}' no existe. ¿Desea crearlo?",
                                              QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
@@ -284,15 +349,19 @@ class NFSApp(QMainWindow):
                     QMessageBox.critical(self, "Error al crear", mensaje)
                     return 
             else:
-                return  # El usuario no quiso crear el nuevo directorio
+                return # El usuario no quiso crear el nuevo directorio ni existe
 
-        # 5. Actualizar el "cerebro" (self.config_data)
-        #    Copiamos los datos del host, borramos la clave vieja y creamos la nueva.
-        datos_hosts = self.config_data.pop(directorio_viejo)  # .pop() obtiene el valor Y borra la clave
+        # ----------------------------------
+
+        # 3. Actualizar la memoria (configuración)
+        datos_hosts = self.config_data.pop(directorio_viejo) 
         self.config_data[directorio_nuevo] = datos_hosts
-
-        # 6. Actualizar la UI
+        
+        # 4. Actualizar UI
         item_actual.setText(directorio_nuevo)
+        
+        # Actualizar título del grupo de detalles
+        self.actualizar_tabla_hosts(item_actual)
 
     def on_suprimir_directorio_clicked(self):
         """
@@ -332,7 +401,7 @@ class NFSApp(QMainWindow):
         actualmente seleccionado.
         """
         
-        # 1. Obtener el directorio seleccionado (el "Maestro")
+        # 1. Obtener el directorio seleccionado 
         item_directorio_actual = self.listaDirectorios.currentItem()
         
         if not item_directorio_actual:
@@ -355,22 +424,28 @@ class NFSApp(QMainWindow):
                 QMessageBox.warning(self, "Dato Faltante", 
                                     "El campo 'Host' no puede estar vacío.")
                 return
+                
+            # --- VALIDACIÓN DE HOST ---
+            # Regex simple para IP: 4 grupos de números separados por puntos
+            patron_ip = r'^(\d{1,3}\.){3}\d{1,3}$'
+            
+            if host != "*" and not re.match(patron_ip, host):
+                QMessageBox.warning(self, "Host Inválido", 
+                                    "El host debe ser el comodín '*' o una IP válida (ej. 192.168.1.10).\n"
+                                    "No se aceptan nombres de dominio ni texto arbitrario.")
+                return
+            # --------------------------
             
             if not opciones:
-                # Opcional: Preguntar si están seguros de no poner opciones.
-                # Para NFS, casi siempre se necesita 'rw' o 'ro'.
+                
                 QMessageBox.warning(self, "Sin Opciones", 
                                     "No seleccionaste ninguna opción. "
                                     "Asegúrate de añadir opciones (ej. 'rw') más tarde.")
-                # Si quieres, puedes añadir un 'return' aquí para forzar 
-                # a que pongan opciones.
 
             # 4. Crear la nueva entrada de datos
             nuevo_host_info = {"host": host, "options": opciones}
             
             # 5. Añadir al "cerebro" (self.config_data)
-            # (No es necesario 'if key in...', ya que no se puede
-            # llegar aquí sin un directorio que ya existe)
             self.config_data[directorio_key].append(nuevo_host_info)
             
             # 6. Refrescar la tabla de hosts (el "Detalle")
@@ -416,6 +491,14 @@ class NFSApp(QMainWindow):
             if not nuevo_host:
                 QMessageBox.warning(self, "Error", "El host no puede estar vacío.")
                 return
+                
+            # --- VALIDACIÓN DE HOST ---
+            patron_ip = r'^(\d{1,3}\.){3}\d{1,3}$'
+            if nuevo_host != "*" and not re.match(patron_ip, nuevo_host):
+                QMessageBox.warning(self, "Host Inválido", 
+                                    "El host debe ser '*' o una IP válida (ej. 192.168.1.10).")
+                return
+            # --------------------------
 
             # 7. Actualizar la memoria
             #    Reemplazamos el diccionario viejo por el nuevo en la misma posición

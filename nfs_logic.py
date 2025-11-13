@@ -144,3 +144,14 @@ def habilitar_servicio_nfs():
         return False, "Error: El inicio del servicio tardó demasiado (Timeout)."
     except Exception as e:
         return False, f"Error: {e}"
+     
+     
+def renombrar_directorio_fs(ruta_vieja, ruta_nueva):
+    """
+    Renombra una carpeta en el sistema de archivos (equivalente a 'mv').
+    """
+    try:
+        os.rename(ruta_vieja, ruta_nueva)
+        return True, f"Carpeta renombrada de '{ruta_vieja}' a '{ruta_nueva}'."
+    except OSError as e:
+        return False, f"Error al renombrar carpeta: {e}"

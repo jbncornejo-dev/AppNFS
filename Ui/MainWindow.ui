@@ -95,7 +95,7 @@
      <item>
       <widget class="QGroupBox" name="Detalle">
        <property name="title">
-        <string>Hosts y Opciones para: [ninguno]</string>
+        <string>Hosts y Opciones</string>
        </property>
        <widget class="QTableWidget" name="tableHost">
         <property name="geometry">
