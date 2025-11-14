@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>417</width>
+    <width>480</width>
     <height>409</height>
    </rect>
   </property>
@@ -18,7 +18,7 @@
     <rect>
      <x>30</x>
      <y>370</y>
-     <width>341</width>
+     <width>420</width>
      <height>32</height>
     </rect>
    </property>
@@ -47,7 +47,7 @@
     <rect>
      <x>20</x>
      <y>60</y>
-     <width>361</width>
+     <width>441</width>
      <height>41</height>
     </rect>
    </property>
@@ -57,7 +57,7 @@
     <rect>
      <x>20</x>
      <y>120</y>
-     <width>361</width>
+     <width>441</width>
      <height>241</height>
     </rect>
    </property>
@@ -69,22 +69,15 @@
      <rect>
       <x>10</x>
       <y>30</y>
-      <width>341</width>
+      <width>421</width>
       <height>206</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_3">
-     <item row="4" column="1">
-      <widget class="QCheckBox" name="insecure">
+     <item row="0" column="0">
+      <widget class="QCheckBox" name="rw">
        <property name="text">
-        <string>insecure</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QCheckBox" name="root_squash">
-       <property name="text">
-        <string>root_squash</string>
+        <string>rw</string>
        </property>
       </widget>
      </item>
@@ -95,31 +88,11 @@
        </property>
       </widget>
      </item>
+
      <item row="1" column="0">
       <widget class="QCheckBox" name="sync">
        <property name="text">
         <string>sync</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="0">
-      <widget class="QCheckBox" name="no_root_squash">
-       <property name="text">
-        <string>no_root_squash</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="1">
-      <widget class="QCheckBox" name="no_subtree_check">
-       <property name="text">
-        <string>no_subtree_check</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="0">
-      <widget class="QCheckBox" name="subtree_check">
-       <property name="text">
-        <string>subtree_check</string>
        </property>
       </widget>
      </item>
@@ -130,6 +103,22 @@
        </property>
       </widget>
      </item>
+
+     <item row="2" column="0">
+      <widget class="QCheckBox" name="no_root_squash">
+       <property name="text">
+        <string>no_root_squash</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QCheckBox" name="root_squash">
+       <property name="text">
+        <string>root_squash</string>
+       </property>
+      </widget>
+     </item>
+
      <item row="3" column="0">
       <widget class="QCheckBox" name="all_squash">
        <property name="text">
@@ -137,20 +126,29 @@
        </property>
       </widget>
      </item>
-     <item row="5" column="1">
-      <widget class="QCheckBox" name="anonuid">
+     <item row="3" column="1">
+      <widget class="QCheckBox" name="no_subtree_check">
        <property name="text">
-        <string>anonuid</string>
+        <string>no_subtree_check</string>
        </property>
       </widget>
      </item>
-     <item row="0" column="0">
-      <widget class="QCheckBox" name="rw">
+
+     <item row="4" column="0">
+      <widget class="QCheckBox" name="subtree_check">
        <property name="text">
-        <string>rw</string>
+        <string>subtree_check</string>
        </property>
       </widget>
      </item>
+     <item row="4" column="1">
+      <widget class="QCheckBox" name="insecure">
+       <property name="text">
+        <string>insecure</string>
+       </property>
+      </widget>
+     </item>
+
      <item row="5" column="0">
       <widget class="QCheckBox" name="secure">
        <property name="text">
@@ -158,6 +156,30 @@
        </property>
       </widget>
      </item>
+
+     <item row="5" column="1">
+      <widget class="QCheckBox" name="anonuid">
+       <property name="text">
+        <string>anonuid</string>
+       </property>
+      </widget>
+     </item>
+
+     <!-- LineEdit para anonuid -->
+     <item row="5" column="2">
+      <widget class="QLineEdit" name="le_anonuid">
+       <property name="maximumSize">
+        <size>
+         <width>80</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="placeholderText">
+        <string>uid</string>
+       </property>
+      </widget>
+     </item>
+
      <item row="6" column="0">
       <widget class="QCheckBox" name="anongid">
        <property name="text">
@@ -165,6 +187,22 @@
        </property>
       </widget>
      </item>
+
+     <!-- LineEdit para anongid -->
+     <item row="6" column="1">
+      <widget class="QLineEdit" name="le_anongid">
+       <property name="maximumSize">
+        <size>
+         <width>80</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="placeholderText">
+        <string>gid</string>
+       </property>
+      </widget>
+     </item>
+
     </layout>
    </widget>
   </widget>
@@ -176,32 +214,12 @@
    <signal>accepted()</signal>
    <receiver>AddHost</receiver>
    <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
   </connection>
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
    <receiver>AddHost</receiver>
    <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>286</x>
-     <y>274</y>
-    </hint>
-   </hints>
   </connection>
  </connections>
 </ui>
